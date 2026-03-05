@@ -226,6 +226,20 @@ check "regen --keep exits successfully" "0" "$regen_exit"
 check "regen --keep shows saved" "saved" "$output"
 rm -f /tmp/git-stats-keep-test.yml
 
+# --- diff command ---
+echo ""
+echo "=== diff ==="
+# Save stats on two commits so diff has data
+"$BINARY" save > /dev/null 2>&1
+prev=$(git rev-parse HEAD~1)
+git checkout -q "$prev"
+"$BINARY" save > /dev/null 2>&1
+git checkout -q -
+output=$("$BINARY" diff HEAD~1 HEAD 2>&1)
+check "diff shows stat column" "stat" "$output"
+check "diff shows change column" "change" "$output"
+check "diff shows lines" "lines" "$output"
+
 # --- regen --keep rejects absolute paths ---
 echo ""
 echo "=== regen --keep absolute path ==="

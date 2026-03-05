@@ -118,6 +118,7 @@ You can also add sparklines to the GitHub Actions job summary:
 | `push` | Push stats to remote |
 | `delete` | Remove a stat key from a commit |
 | `clear` | Delete all stats |
+| `diff <a> <b>` | Compare stats between two commits or branches |
 | `ci` | All-in-one: fetch, save, regen, push |
 
 ## Viewing stats
@@ -149,6 +150,18 @@ Pass any `git log` arguments after `--`:
 
 ```console
 $ git stats log -- -n 20 --reverse --author="dave"
+```
+
+## Comparing stats
+
+Compare stats between two commits or branches:
+
+```console
+$ git stats diff main feature-branch
+stat      main     feature  change
+todos       42          45      +3
+coverage    87%         89%     +2%
+loc       1203        1250    +47
 ```
 
 ## Global flags
