@@ -183,6 +183,41 @@ output=$("$BINARY" log -- -n 3 2>&1)
 zero_lines=$(echo "$output" | tail -n +2 | awk -F'\t' '$2 == "0" {print}' | wc -l | tr -d ' ')
 check "regen filled missing commits" "0" "$zero_lines"
 
+# --- regen with untracked files ---
+echo ""
+echo "=== regen with untracked files ==="
+echo "I am untracked" > untracked_file.txt
+output=$(echo "y" | "$BINARY" regen -- -n 2 2>&1)
+regen_exit=$?
+check "regen succeeds with untracked files" "0" "$regen_exit"
+check "untracked file survives regen" "I am untracked" "$(cat untracked_file.txt)"
+rm -f untracked_file.txt
+
+# --- regen with --keep ---
+echo ""
+echo "=== regen with --keep ==="
+# Create a script that only exists on the current branch
+mkdir -p scripts
+echo '#!/bin/sh' > scripts/count.sh
+echo 'echo 42' >> scripts/count.sh
+chmod +x scripts/count.sh
+git add scripts/count.sh
+git commit -q -m "add count script"
+
+# Create a config that uses the script
+cat > /tmp/git-stats-keep-test.yml <<'EOF'
+stats:
+  answer:
+    run: |
+      sh scripts/count.sh
+EOF
+
+output=$(echo "y" | "$BINARY" regen --config /tmp/git-stats-keep-test.yml --keep scripts/count.sh -k answer -- -n 3 2>&1)
+regen_exit=$?
+check "regen --keep exits successfully" "0" "$regen_exit"
+check "regen --keep shows saved" "saved" "$output"
+rm -f /tmp/git-stats-keep-test.yml
+
 # --- summary ---
 echo ""
 echo "========================"

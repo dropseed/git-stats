@@ -156,4 +156,20 @@ Only fill in commits that are missing stats:
 $ git stats regen --missing-only -- -n 50
 ```
 
-Your working tree must be clean (no uncommitted changes) to use regen.
+Your working tree must be clean (no uncommitted changes to tracked files) to use regen.
+Untracked files are preserved through checkouts.
+
+### First-time setup
+
+When adding git-stats to an existing repo, your config file and any scripts it
+references won't exist in older commits. Use `--config` to point at a config
+file outside the checkout, and `--keep` to preserve files through checkouts:
+
+```console
+# Copy config somewhere safe and regen with it
+$ cp git-stats.yml /tmp/git-stats.yml
+$ git stats regen --config /tmp/git-stats.yml -- -n 50
+
+# Or keep scripts and config in place during checkouts
+$ git stats regen --keep scripts/bench,git-stats.yml -- -n 50
+```

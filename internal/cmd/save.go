@@ -19,12 +19,14 @@ func init() {
 		RunE:  runSave,
 	}
 	cmd.Flags().StringSliceP("key", "k", nil, "Stats to include (all if not specified)")
+	cmd.Flags().String("config", "", "Path to config file (default: git-stats.yml in repo)")
 	rootCmd.AddCommand(cmd)
 }
 
 func runSave(cmd *cobra.Command, args []string) error {
 	keys, _ := cmd.Flags().GetStringSlice("key")
-	cfg, err := config.Load("")
+	configPath, _ := cmd.Flags().GetString("config")
+	cfg, err := config.Load(configPath)
 	if err != nil {
 		return err
 	}
