@@ -124,14 +124,18 @@ func (cs *CommitStat) FormatValue(v float64) string {
 }
 
 type CommitStats struct {
-	Commits []string
-	Keys    []string
-	Stats   map[string]*CommitStat
+	Commits   []string
+	ShortHash map[string]string
+	Subjects  map[string]string
+	Keys      []string
+	Stats     map[string]*CommitStat
 }
 
 func New() *CommitStats {
 	return &CommitStats{
-		Stats: make(map[string]*CommitStat),
+		ShortHash: make(map[string]string),
+		Subjects:  make(map[string]string),
+		Stats:     make(map[string]*CommitStat),
 	}
 }
 
@@ -201,9 +205,15 @@ func (s *CommitStats) Print(valuesOnly bool, sep string) {
 
 func (s *CommitStats) PrintTable(valuesOnly bool) {
 	// Calculate column widths
-	commitWidth := 7 // short hash length
+	commitWidth := len("commit")
 	if valuesOnly {
 		commitWidth = 0
+	} else {
+		for _, commit := range s.Commits {
+			if w := len(s.ShortHash[commit]); w > commitWidth {
+				commitWidth = w
+			}
+		}
 	}
 
 	colWidths := make([]int, len(s.Keys))
@@ -221,11 +231,16 @@ func (s *CommitStats) PrintTable(valuesOnly bool) {
 		}
 	}
 
+	hasSubjects := len(s.Subjects) > 0
+
 	// Print header
 	if !valuesOnly {
 		fmt.Printf("%-*s", commitWidth, "commit")
 		for i, key := range s.Keys {
 			fmt.Printf("  %*s", colWidths[i], key)
+		}
+		if hasSubjects {
+			fmt.Print("  message")
 		}
 		fmt.Println()
 	}
@@ -233,7 +248,7 @@ func (s *CommitStats) PrintTable(valuesOnly bool) {
 	// Print rows
 	for _, commit := range s.Commits {
 		if !valuesOnly {
-			fmt.Printf("%.7s", commit)
+			fmt.Printf("%-*s", commitWidth, s.ShortHash[commit])
 		}
 		for i, key := range s.Keys {
 			stat := s.Stats[key]
@@ -243,6 +258,13 @@ func (s *CommitStats) PrintTable(valuesOnly bool) {
 			} else {
 				fmt.Printf("  %*s", colWidths[i], "")
 			}
+		}
+		if hasSubjects {
+			subject := s.Subjects[commit]
+			if len(subject) > 50 {
+				subject = subject[:47] + "..."
+			}
+			fmt.Printf("  %s", subject)
 		}
 		fmt.Println()
 	}
@@ -272,15 +294,17 @@ func (s *CommitStats) PrintPretty(valuesOnly bool) {
 
 func (s *CommitStats) PrintJSON() {
 	type entry struct {
-		Commit string            `json:"commit"`
-		Stats  map[string]string `json:"stats"`
+		Commit  string            `json:"commit"`
+		Subject string            `json:"subject,omitempty"`
+		Stats   map[string]string `json:"stats"`
 	}
 
 	entries := make([]entry, 0, len(s.Commits))
 	for _, commit := range s.Commits {
 		e := entry{
-			Commit: commit,
-			Stats:  make(map[string]string),
+			Commit:  commit,
+			Subject: s.Subjects[commit],
+			Stats:   make(map[string]string),
 		}
 		for _, key := range s.Keys {
 			stat := s.Stats[key]
@@ -326,7 +350,7 @@ func Load(keys []string, cfg *config.Config, fillDefaults bool, gitLogArgs []str
 	args := []string{
 		"log",
 		fmt.Sprintf("--show-notes=%s", notes.RefPath),
-		"--format=COMMIT\n%H\n%N",
+		"--format=COMMIT\n%H\n%h\n%s\n%N",
 	}
 	args = append(args, gitLogArgs...)
 
@@ -338,6 +362,8 @@ func Load(keys []string, cfg *config.Config, fillDefaults bool, gitLogArgs []str
 	s := New()
 	var commit string
 	expectHash := false
+	expectShortHash := false
+	expectSubject := false
 
 	for _, line := range strings.Split(out, "\n") {
 		if line == "COMMIT" {
@@ -349,12 +375,26 @@ func Load(keys []string, cfg *config.Config, fillDefaults bool, gitLogArgs []str
 			commit = line
 			s.AppendCommit(commit)
 			expectHash = false
+			expectShortHash = true
 
 			if fillDefaults {
 				for _, key := range keys {
 					s.AddOrUpdate(commit, key, cfg.DefaultForStat(key), cfg.TypeForStat(key))
 				}
 			}
+			continue
+		}
+
+		if expectShortHash {
+			s.ShortHash[commit] = line
+			expectShortHash = false
+			expectSubject = true
+			continue
+		}
+
+		if expectSubject {
+			s.Subjects[commit] = line
+			expectSubject = false
 			continue
 		}
 
