@@ -261,6 +261,14 @@ func (s *CommitStats) Sparklines() {
 	}
 }
 
+func (s *CommitStats) PrintPretty(valuesOnly bool) {
+	s.PrintTable(valuesOnly)
+	if len(s.Keys) > 0 {
+		fmt.Println()
+		s.Sparklines()
+	}
+}
+
 func sparkline(values []float64) string {
 	if len(values) == 0 {
 		return ""

@@ -122,8 +122,9 @@ output=$("$BINARY" log -- -n 3 2>&1)
 check "log has header" "commit" "$output"
 check "log has lines column" "lines" "$output"
 check "log has files column" "files" "$output"
-linecount=$(echo "$output" | wc -l | tr -d ' ')
-check "log has 4 lines (header + 3 commits)" "4" "$linecount"
+tableoutput=$("$BINARY" log --format table -- -n 3 2>&1)
+linecount=$(echo "$tableoutput" | wc -l | tr -d ' ')
+check "log table has 4 lines (header + 3 commits)" "4" "$linecount"
 
 # --- log csv ---
 echo ""
