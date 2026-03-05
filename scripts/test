@@ -1,0 +1,192 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Build the binary
+echo "Building git-stats..."
+cd "$(dirname "$0")/.."
+go build -o git-stats .
+
+# Create an isolated temp repo
+TESTREPO=$(mktemp -d)
+trap 'rm -rf "$TESTREPO"' EXIT
+
+BINARY="$(pwd)/git-stats"
+
+cd "$TESTREPO"
+git init -q
+git config user.name "test"
+git config user.email "test@test.com"
+
+# Create a git-stats.yml
+cat > git-stats.yml <<'EOF'
+stats:
+  lines:
+    run: |
+      find . -name "*.txt" | xargs cat 2>/dev/null | wc -l | tr -d ' '
+    default: 0
+  files:
+    run: |
+      find . -name "*.txt" | wc -l | tr -d ' '
+    default: 0
+EOF
+
+# Make a few commits with different content
+for i in 1 2 3 4 5; do
+    seq 1 $((i * 10)) > "file${i}.txt"
+    git add .
+    git commit -q -m "commit ${i}"
+done
+
+pass=0
+fail=0
+
+check() {
+    local desc="$1"
+    local expected="$2"
+    local actual="$3"
+
+    if echo "$actual" | grep -q "$expected"; then
+        echo "  PASS: $desc"
+        pass=$((pass + 1))
+    else
+        echo "  FAIL: $desc"
+        echo "    expected to contain: $expected"
+        echo "    got: $actual"
+        fail=$((fail + 1))
+    fi
+}
+
+check_not() {
+    local desc="$1"
+    local unexpected="$2"
+    local actual="$3"
+
+    if echo "$actual" | grep -q "$unexpected"; then
+        echo "  FAIL: $desc"
+        echo "    should not contain: $unexpected"
+        fail=$((fail + 1))
+    else
+        echo "  PASS: $desc"
+        pass=$((pass + 1))
+    fi
+}
+
+check_exit() {
+    local desc="$1"
+    local expected_exit="$2"
+    shift 2
+    local actual_exit=0
+    "$@" > /dev/null 2>&1 || actual_exit=$?
+
+    if [ "$actual_exit" -eq "$expected_exit" ]; then
+        echo "  PASS: $desc (exit $actual_exit)"
+        pass=$((pass + 1))
+    else
+        echo "  FAIL: $desc"
+        echo "    expected exit: $expected_exit, got: $actual_exit"
+        fail=$((fail + 1))
+    fi
+}
+
+# --- check command ---
+echo ""
+echo "=== check ==="
+output=$("$BINARY" check 2>&1)
+check "check shows lines value" "lines:" "$output"
+check "check shows files value" "files:" "$output"
+
+# --- save command ---
+echo ""
+echo "=== save ==="
+output=$("$BINARY" save 2>&1)
+check "save shows lines" "lines:" "$output"
+check "save shows files" "files:" "$output"
+
+# --- show command ---
+echo ""
+echo "=== show ==="
+output=$("$BINARY" show 2>&1)
+check "show has lines" "lines:" "$output"
+check "show has files" "files:" "$output"
+
+# --- save with --key ---
+echo ""
+echo "=== save --key ==="
+output=$("$BINARY" save --key lines 2>&1)
+check "save --key only runs lines" "lines:" "$output"
+
+# --- log command ---
+echo ""
+echo "=== log ==="
+output=$("$BINARY" log -- -n 3 2>&1)
+check "log has header" "commit" "$output"
+check "log has lines column" "lines" "$output"
+check "log has files column" "files" "$output"
+linecount=$(echo "$output" | wc -l | tr -d ' ')
+check "log has 4 lines (header + 3 commits)" "4" "$linecount"
+
+# --- log csv ---
+echo ""
+echo "=== log csv ==="
+output=$("$BINARY" log --format csv -- -n 2 2>&1)
+check "csv has commas" "," "$output"
+
+# --- log sparklines ---
+echo ""
+echo "=== log sparklines ==="
+output=$("$BINARY" log --format sparklines -- -n 5 2>&1)
+check "sparklines has min" "min" "$output"
+check "sparklines has max" "max" "$output"
+check "sparklines has avg" "avg" "$output"
+
+# --- log values-only ---
+echo ""
+echo "=== log values-only ==="
+output=$("$BINARY" log --values-only -- -n 2 2>&1)
+check_not "values-only has no header" "^commit" "$output"
+
+# --- delete command ---
+echo ""
+echo "=== delete ==="
+"$BINARY" delete --key files > /dev/null 2>&1
+output=$("$BINARY" show 2>&1)
+check "delete kept lines stat" "lines:" "$output"
+check_not "delete removed files stat" "^files:" "$output"
+
+# --- show on specific commit ---
+echo ""
+echo "=== show specific commit ==="
+commit=$(git rev-parse HEAD~1)
+check_exit "show on commit without stats exits non-zero" 1 "$BINARY" show "$commit"
+
+# --- clear command ---
+echo ""
+echo "=== clear ==="
+echo "y" | "$BINARY" clear > /dev/null 2>&1
+check_exit "show after clear exits non-zero" 1 "$BINARY" show
+
+# --- save after clear, verify round-trip ---
+echo ""
+echo "=== round-trip after clear ==="
+"$BINARY" save > /dev/null 2>&1
+output=$("$BINARY" show 2>&1)
+check "round-trip has lines" "lines:" "$output"
+check "round-trip has files" "files:" "$output"
+
+# --- regen (non-interactive, missing-only) ---
+echo ""
+echo "=== regen ==="
+echo "y" | "$BINARY" regen --missing-only -- -n 3 2>&1
+# Verify stats exist on older commits now by checking log output
+output=$("$BINARY" log -- -n 3 2>&1)
+# All 3 commits should have non-zero lines values after regen
+zero_lines=$(echo "$output" | tail -n +2 | awk -F'\t' '$2 == "0" {print}' | wc -l | tr -d ' ')
+check "regen filled missing commits" "0" "$zero_lines"
+
+# --- summary ---
+echo ""
+echo "========================"
+echo "Results: $pass passed, $fail failed"
+if [ "$fail" -gt 0 ]; then
+    exit 1
+fi

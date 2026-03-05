@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+echo "gofmt..."
+unformatted=$(gofmt -l .)
+if [ -n "$unformatted" ]; then
+    echo "Files need formatting:"
+    echo "$unformatted"
+    exit 1
+fi
+
+echo "go vet..."
+go vet ./...
+
+echo "golangci-lint..."
+golangci-lint run ./...
+
+echo "All checks passed."

@@ -1,2 +1,0 @@
-#!/bin/sh -ex
-POETRY_VENV_IN_PROJECT=1 poetry install

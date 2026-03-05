@@ -1,0 +1,7 @@
+stats:
+  lines:
+    run: |
+      find . -name "*.go" | xargs wc -l | tail -1 | awk '{print $1}'
+  files:
+    run: |
+      find . -name "*.go" | wc -l | tr -d ' '
