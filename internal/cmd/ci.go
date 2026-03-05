@@ -54,7 +54,7 @@ func runCI(cmd *cobra.Command, args []string) error {
 
 	if regenMissing {
 		fmt.Println("\n\033[36mRegenerating stats for last 10 commits if they are missing...\033[0m")
-		if err := doRegen(keys, cfg, true, []string{"-n", "10"}, nil); err != nil {
+		if err := doRegen(cmd, keys, cfg, true, []string{"-n", "10"}, nil); err != nil {
 			return err
 		}
 	}

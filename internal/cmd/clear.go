@@ -20,7 +20,7 @@ func init() {
 func runClear(cmd *cobra.Command, args []string) error {
 	remote, _ := cmd.Flags().GetBool("remote")
 
-	if !confirmPrompt("Are you sure you want to clear all existing stats?") {
+	if !confirmPrompt(cmd, "Are you sure you want to clear all existing stats?") {
 		return nil
 	}
 

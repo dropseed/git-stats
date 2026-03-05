@@ -78,7 +78,7 @@ func runRegen(cmd *cobra.Command, args []string) error {
 
 	keys = config.ResolveKeys(keys, cfg)
 
-	return doRegen(keys, cfg, missingOnly, args, keepFiles)
+	return doRegen(cmd, keys, cfg, missingOnly, args, keepFiles)
 }
 
 type regenSummary struct {
@@ -88,7 +88,7 @@ type regenSummary struct {
 	empty   int
 }
 
-func doRegen(keys []string, cfg *config.Config, missingOnly bool, gitLogArgs []string, keepFiles []string) error {
+func doRegen(cmd *cobra.Command, keys []string, cfg *config.Config, missingOnly bool, gitLogArgs []string, keepFiles []string) error {
 	currentBranch, err := git.Output("rev-parse", "--abbrev-ref", "HEAD")
 	if err != nil {
 		return fmt.Errorf("getting current branch: %w", err)
@@ -113,12 +113,12 @@ func doRegen(keys []string, cfg *config.Config, missingOnly bool, gitLogArgs []s
 			return nil
 		}
 		prompt := fmt.Sprintf("Regenerate %v stats for %d of %d commits?", keys, len(commits), totalCommits)
-		if !confirmPrompt(prompt) {
+		if !confirmPrompt(cmd, prompt) {
 			return nil
 		}
 	} else {
 		prompt := fmt.Sprintf("Regenerate %v stats for %d commits?", keys, len(commits))
-		if !confirmPrompt(prompt) {
+		if !confirmPrompt(cmd, prompt) {
 			return nil
 		}
 	}
@@ -254,8 +254,9 @@ func checkTrackedFilesClean() error {
 	return nil
 }
 
-func confirmPrompt(prompt string) bool {
-	if !isTerminal() {
+func confirmPrompt(cmd *cobra.Command, prompt string) bool {
+	yes, _ := cmd.Flags().GetBool("yes")
+	if yes || !isTerminal() {
 		return true
 	}
 
