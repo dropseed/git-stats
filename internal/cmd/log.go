@@ -17,7 +17,7 @@ func init() {
 	}
 	cmd.Flags().StringSliceP("key", "k", nil, "Stats to include (all if not specified)")
 	cmd.Flags().Bool("values-only", false, "Only print values (no headers)")
-	cmd.Flags().String("format", "tsv", "Output format: tsv, csv, sparklines")
+	cmd.Flags().String("format", "table", "Output format: table, tsv, csv, sparklines")
 	rootCmd.AddCommand(cmd)
 }
 
@@ -39,6 +39,8 @@ func runLog(cmd *cobra.Command, args []string) error {
 	}
 
 	switch format {
+	case "table":
+		s.PrintTable(valuesOnly)
 	case "tsv":
 		s.Print(valuesOnly, "\t")
 	case "csv":
@@ -46,7 +48,7 @@ func runLog(cmd *cobra.Command, args []string) error {
 	case "sparklines":
 		s.Sparklines()
 	default:
-		return fmt.Errorf("unknown format %q (valid: tsv, csv, sparklines)", format)
+		return fmt.Errorf("unknown format %q (valid: table, tsv, csv, sparklines)", format)
 	}
 
 	return nil

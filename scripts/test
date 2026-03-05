@@ -178,7 +178,7 @@ echo ""
 echo "=== regen ==="
 echo "y" | "$BINARY" regen --missing-only -- -n 3 2>&1
 # Verify stats exist on older commits now by checking log output
-output=$("$BINARY" log -- -n 3 2>&1)
+output=$("$BINARY" log --format tsv -- -n 3 2>&1)
 # All 3 commits should have non-zero lines values after regen
 zero_lines=$(echo "$output" | tail -n +2 | awk -F'\t' '$2 == "0" {print}' | wc -l | tr -d ' ')
 check "regen filled missing commits" "0" "$zero_lines"

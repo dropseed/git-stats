@@ -198,6 +198,55 @@ func (s *CommitStats) Print(valuesOnly bool, sep string) {
 	}
 }
 
+func (s *CommitStats) PrintTable(valuesOnly bool) {
+	// Calculate column widths
+	commitWidth := 7 // short hash length
+	if valuesOnly {
+		commitWidth = 0
+	}
+
+	colWidths := make([]int, len(s.Keys))
+	for i, key := range s.Keys {
+		colWidths[i] = len(key)
+		stat := s.Stats[key]
+		for _, commit := range s.Commits {
+			v, ok := stat.Get(commit)
+			if ok {
+				w := len(stat.FormatValue(v))
+				if w > colWidths[i] {
+					colWidths[i] = w
+				}
+			}
+		}
+	}
+
+	// Print header
+	if !valuesOnly {
+		fmt.Printf("%-*s", commitWidth, "commit")
+		for i, key := range s.Keys {
+			fmt.Printf("  %*s", colWidths[i], key)
+		}
+		fmt.Println()
+	}
+
+	// Print rows
+	for _, commit := range s.Commits {
+		if !valuesOnly {
+			fmt.Printf("%.7s", commit)
+		}
+		for i, key := range s.Keys {
+			stat := s.Stats[key]
+			v, ok := stat.Get(commit)
+			if ok {
+				fmt.Printf("  %*s", colWidths[i], stat.FormatValue(v))
+			} else {
+				fmt.Printf("  %*s", colWidths[i], "")
+			}
+		}
+		fmt.Println()
+	}
+}
+
 func (s *CommitStats) Sparklines() {
 	for _, key := range s.Keys {
 		stat := s.Stats[key]
