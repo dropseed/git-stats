@@ -23,7 +23,7 @@ jobs:
       - run: go vet ./...
       - uses: golangci/golangci-lint-action@v6
         with:
-          version: v2
+          version: v2.10
 
   test:
     runs-on: ubuntu-latest
