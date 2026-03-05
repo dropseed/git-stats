@@ -135,21 +135,20 @@ func runDiff(cmd *cobra.Command, args []string) error {
 	}
 
 	// Header
-	fmt.Printf("%-*s  %*s  %*s  %*s\n", keyWidth, "stat", valAWidth, shortA, valBWidth, shortB, changeWidth, "change")
+	fmt.Printf("\033[1m%-*s  %*s  %*s  %*s\033[0m\n", keyWidth, "stat", valAWidth, shortA, valBWidth, shortB, changeWidth, "change")
 
 	// Rows
 	for _, r := range rows {
-		changeColor := ""
-		resetColor := ""
+		changeColor := "\033[2m" // dim for "="
+		resetColor := "\033[0m"
 		if len(r.change) > 0 && r.change != "=" {
 			if r.change[0] == '+' {
 				changeColor = "\033[32m"
 			} else {
 				changeColor = "\033[31m"
 			}
-			resetColor = "\033[0m"
 		}
-		fmt.Printf("%-*s  %*s  %*s  %s%*s%s\n", keyWidth, r.key, valAWidth, r.valA, valBWidth, r.valB, changeColor, changeWidth, r.change, resetColor)
+		fmt.Printf("%-*s  \033[36m%*s\033[0m  \033[36m%*s\033[0m  %s%*s%s\n", keyWidth, r.key, valAWidth, r.valA, valBWidth, r.valB, changeColor, changeWidth, r.change, resetColor)
 	}
 
 	return nil

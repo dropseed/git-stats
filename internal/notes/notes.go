@@ -58,7 +58,13 @@ func Show(commitish string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Println(note)
+	for _, line := range strings.Split(note, "\n") {
+		if parts := strings.SplitN(line, ":", 2); len(parts) == 2 {
+			fmt.Printf("\033[1m%s:\033[0m\033[36m%s\033[0m\n", parts[0], parts[1])
+		} else if line != "" {
+			fmt.Println(line)
+		}
+	}
 	return nil
 }
 

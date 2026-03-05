@@ -14,6 +14,16 @@ import (
 
 var sparkBlocks = []rune{'▁', '▂', '▃', '▄', '▅', '▆', '▇', '█'}
 
+// ANSI color helpers
+const (
+	colorReset  = "\033[0m"
+	colorBold   = "\033[1m"
+	colorDim    = "\033[2m"
+	colorCyan   = "\033[36m"
+	colorGreen  = "\033[32m"
+	colorYellow = "\033[33m"
+)
+
 type CommitStat struct {
 	Type         string
 	commitOrder  []string
@@ -235,12 +245,12 @@ func (s *CommitStats) PrintTable(valuesOnly bool) {
 
 	// Print header
 	if !valuesOnly {
-		fmt.Printf("%-*s", commitWidth, "commit")
+		fmt.Printf("%s%-*s%s", colorBold, commitWidth, "commit", colorReset)
 		for i, key := range s.Keys {
-			fmt.Printf("  %*s", colWidths[i], key)
+			fmt.Printf("  %s%*s%s", colorBold, colWidths[i], key, colorReset)
 		}
 		if hasSubjects {
-			fmt.Print("  message")
+			fmt.Printf("  %smessage%s", colorBold, colorReset)
 		}
 		fmt.Println()
 	}
@@ -248,13 +258,13 @@ func (s *CommitStats) PrintTable(valuesOnly bool) {
 	// Print rows
 	for _, commit := range s.Commits {
 		if !valuesOnly {
-			fmt.Printf("%-*s", commitWidth, s.ShortHash[commit])
+			fmt.Printf("%s%-*s%s", colorYellow, commitWidth, s.ShortHash[commit], colorReset)
 		}
 		for i, key := range s.Keys {
 			stat := s.Stats[key]
 			v, ok := stat.Get(commit)
 			if ok {
-				fmt.Printf("  %*s", colWidths[i], stat.FormatValue(v))
+				fmt.Printf("  %s%*s%s", colorCyan, colWidths[i], stat.FormatValue(v), colorReset)
 			} else {
 				fmt.Printf("  %*s", colWidths[i], "")
 			}
@@ -264,7 +274,7 @@ func (s *CommitStats) PrintTable(valuesOnly bool) {
 			if len(subject) > 50 {
 				subject = subject[:47] + "..."
 			}
-			fmt.Printf("  %s", subject)
+			fmt.Printf("  %s%s%s", colorDim, subject, colorReset)
 		}
 		fmt.Println()
 	}
@@ -273,13 +283,15 @@ func (s *CommitStats) PrintTable(valuesOnly bool) {
 func (s *CommitStats) Sparklines() {
 	for _, key := range s.Keys {
 		stat := s.Stats[key]
-		fmt.Printf("\033[1m%s\033[0m (min %s, max %s, avg %s)\n",
-			key,
-			stat.FormatValue(stat.Min()),
-			stat.FormatValue(stat.Max()),
-			stat.FormatValue(stat.Avg()),
+		fmt.Printf("%s%s%s %s(min %s%s%s, max %s%s%s, avg %s%s%s)%s\n",
+			colorBold, key, colorReset,
+			colorDim,
+			colorCyan, stat.FormatValue(stat.Min()), colorDim,
+			colorCyan, stat.FormatValue(stat.Max()), colorDim,
+			colorCyan, stat.FormatValue(stat.Avg()), colorDim,
+			colorReset,
 		)
-		fmt.Println(sparkline(stat.Values()))
+		fmt.Printf("%s%s%s\n", colorGreen, sparkline(stat.Values()), colorReset)
 		fmt.Println()
 	}
 }
