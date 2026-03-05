@@ -18,6 +18,7 @@ func init() {
 	cmd.Flags().Bool("regen-missing", true, "Regenerate stats on commits missing them")
 	cmd.Flags().String("git-name", "github-actions", "Git user.name for commits")
 	cmd.Flags().String("git-email", "github-actions@github.com", "Git user.email for commits")
+	cmd.Flags().String("config", "", "Path to config file (default: git-stats.yml in repo)")
 	rootCmd.AddCommand(cmd)
 }
 
@@ -26,8 +27,9 @@ func runCI(cmd *cobra.Command, args []string) error {
 	regenMissing, _ := cmd.Flags().GetBool("regen-missing")
 	gitName, _ := cmd.Flags().GetString("git-name")
 	gitEmail, _ := cmd.Flags().GetString("git-email")
+	configPath, _ := cmd.Flags().GetString("config")
 
-	cfg, err := config.Load("")
+	cfg, err := config.Load(configPath)
 	if err != nil {
 		return err
 	}

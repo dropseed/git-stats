@@ -112,8 +112,8 @@ You can also add sparklines to the GitHub Actions job summary:
 | `check` | Run stat commands and print values (dry run) |
 | `save` | Run stat commands and save as git notes on HEAD |
 | `show [commit]` | Display saved stats for a commit |
-| `log [-- git log args]` | Show stats across commits (tsv, csv, or sparklines) |
-| `regen [-- git log args]` | Check out old commits and regenerate missing stats |
+| `log [-- git log args]` | Show stats across commits (pretty, table, tsv, csv, json, sparklines) |
+| `regen [-- git log args]` | Check out old commits and regenerate stats |
 | `fetch` | Fetch stats from remote |
 | `push` | Push stats to remote |
 | `delete` | Remove a stat key from a commit |
@@ -122,25 +122,41 @@ You can also add sparklines to the GitHub Actions job summary:
 
 ## Viewing stats
 
-```console
-$ git stats log -- -n 10
-commit	todos	coverage	loc
-abc1234...	42	87	1203
-def5678...	41	86	1180
-...
-```
+The default `pretty` format shows an aligned table with short hashes, plus sparklines when there are 3+ commits:
 
 ```console
-$ git stats log --format sparklines -- -n 50 --reverse
+$ git stats log -- -n 10
+commit  todos  coverage    loc
+abc1234    42        87   1203
+def5678    41        86   1180
+...
+
 todos (min 0, max 43, avg 25.4)
 ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▇▇▇███████████████████████████████
+```
+
+Other formats:
+
+```console
+$ git stats log --format table -- -n 10      # aligned table only
+$ git stats log --format sparklines -- -n 50  # sparklines only
+$ git stats log --format csv -- -n 20         # machine-readable CSV
+$ git stats log --format tsv -- -n 20         # machine-readable TSV
+$ git stats log --format json -- -n 10        # JSON array
 ```
 
 Pass any `git log` arguments after `--`:
 
 ```console
-$ git stats log --format csv -- -n 20 --reverse --author="dave"
+$ git stats log -- -n 20 --reverse --author="dave"
 ```
+
+## Global flags
+
+| Flag | Description |
+|------|-------------|
+| `--config <path>` | Path to config file (default: `git-stats.yml` in repo). Available on `check`, `save`, `regen`, and `ci`. |
+| `-y`, `--yes` | Skip confirmation prompts. Useful for scripts and CI. |
 
 ## Retroactive stats
 

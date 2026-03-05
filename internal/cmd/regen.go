@@ -89,6 +89,12 @@ type regenSummary struct {
 }
 
 func doRegen(cmd *cobra.Command, keys []string, cfg *config.Config, missingOnly bool, gitLogArgs []string, keepFiles []string) error {
+	for _, f := range keepFiles {
+		if filepath.IsAbs(f) {
+			return fmt.Errorf("--keep paths must be relative: %s", f)
+		}
+	}
+
 	currentBranch, err := git.Output("rev-parse", "--abbrev-ref", "HEAD")
 	if err != nil {
 		return fmt.Errorf("getting current branch: %w", err)

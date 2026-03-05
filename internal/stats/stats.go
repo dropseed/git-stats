@@ -1,6 +1,7 @@
 package stats
 
 import (
+	"encoding/json"
 	"fmt"
 	"math"
 	"strconv"
@@ -263,10 +264,36 @@ func (s *CommitStats) Sparklines() {
 
 func (s *CommitStats) PrintPretty(valuesOnly bool) {
 	s.PrintTable(valuesOnly)
-	if len(s.Keys) > 0 {
+	if len(s.Keys) > 0 && len(s.Commits) >= 3 {
 		fmt.Println()
 		s.Sparklines()
 	}
+}
+
+func (s *CommitStats) PrintJSON() {
+	type entry struct {
+		Commit string            `json:"commit"`
+		Stats  map[string]string `json:"stats"`
+	}
+
+	entries := make([]entry, 0, len(s.Commits))
+	for _, commit := range s.Commits {
+		e := entry{
+			Commit: commit,
+			Stats:  make(map[string]string),
+		}
+		for _, key := range s.Keys {
+			stat := s.Stats[key]
+			v, ok := stat.Get(commit)
+			if ok {
+				e.Stats[key] = stat.FormatValue(v)
+			}
+		}
+		entries = append(entries, e)
+	}
+
+	data, _ := json.MarshalIndent(entries, "", "  ")
+	fmt.Println(string(data))
 }
 
 func sparkline(values []float64) string {

@@ -132,6 +132,13 @@ echo "=== log csv ==="
 output=$("$BINARY" log --format csv -- -n 2 2>&1)
 check "csv has commas" "," "$output"
 
+# --- log json ---
+echo ""
+echo "=== log json ==="
+output=$("$BINARY" log --format json -- -n 2 2>&1)
+check "json has commit field" '"commit"' "$output"
+check "json has stats field" '"stats"' "$output"
+
 # --- log sparklines ---
 echo ""
 echo "=== log sparklines ==="
@@ -218,6 +225,11 @@ regen_exit=$?
 check "regen --keep exits successfully" "0" "$regen_exit"
 check "regen --keep shows saved" "saved" "$output"
 rm -f /tmp/git-stats-keep-test.yml
+
+# --- regen --keep rejects absolute paths ---
+echo ""
+echo "=== regen --keep absolute path ==="
+check_exit "regen --keep rejects absolute paths" 1 "$BINARY" regen --keep /tmp/something -- -n 1
 
 # --- summary ---
 echo ""

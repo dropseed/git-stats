@@ -17,7 +17,8 @@ func init() {
 	}
 	cmd.Flags().StringSliceP("key", "k", nil, "Stats to include (all if not specified)")
 	cmd.Flags().Bool("values-only", false, "Only print values (no headers)")
-	cmd.Flags().String("format", "pretty", "Output format: pretty, table, tsv, csv, sparklines")
+	cmd.Flags().String("format", "pretty", "Output format: pretty, table, tsv, csv, json, sparklines")
+	cmd.Flags().String("config", "", "Path to config file (default: git-stats.yml in repo)")
 	rootCmd.AddCommand(cmd)
 }
 
@@ -25,8 +26,9 @@ func runLog(cmd *cobra.Command, args []string) error {
 	keys, _ := cmd.Flags().GetStringSlice("key")
 	valuesOnly, _ := cmd.Flags().GetBool("values-only")
 	format, _ := cmd.Flags().GetString("format")
+	configPath, _ := cmd.Flags().GetString("config")
 
-	cfg, err := config.Load("")
+	cfg, err := config.Load(configPath)
 	if err != nil {
 		return err
 	}
@@ -47,10 +49,12 @@ func runLog(cmd *cobra.Command, args []string) error {
 		s.Print(valuesOnly, "\t")
 	case "csv":
 		s.Print(valuesOnly, ",")
+	case "json":
+		s.PrintJSON()
 	case "sparklines":
 		s.Sparklines()
 	default:
-		return fmt.Errorf("unknown format %q (valid: table, pretty, tsv, csv, sparklines)", format)
+		return fmt.Errorf("unknown format %q (valid: pretty, table, tsv, csv, json, sparklines)", format)
 	}
 
 	return nil
