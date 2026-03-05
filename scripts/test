@@ -236,9 +236,21 @@ git checkout -q "$prev"
 "$BINARY" save > /dev/null 2>&1
 git checkout -q -
 output=$("$BINARY" diff HEAD~1 HEAD 2>&1)
-check "diff shows stat column" "stat" "$output"
-check "diff shows change column" "change" "$output"
-check "diff shows lines" "lines" "$output"
+check "diff two args shows stat" "stat" "$output"
+check "diff two args shows change" "change" "$output"
+check "diff two args shows lines" "lines" "$output"
+
+# no args (HEAD~1 vs HEAD)
+output=$("$BINARY" diff 2>&1)
+check "diff no args works" "stat" "$output"
+
+# single arg (vs HEAD)
+output=$("$BINARY" diff HEAD~1 2>&1)
+check "diff single arg works" "stat" "$output"
+
+# dot-dot syntax
+output=$("$BINARY" diff HEAD~1..HEAD 2>&1)
+check "diff dot-dot syntax works" "stat" "$output"
 
 # --- regen --keep rejects absolute paths ---
 echo ""

@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"math"
+	"strings"
 
 	"github.com/dropseed/git-stats/internal/config"
 	"github.com/dropseed/git-stats/internal/stats"
@@ -11,18 +12,28 @@ import (
 
 func init() {
 	cmd := &cobra.Command{
-		Use:   "diff <commit-a> <commit-b>",
+		Use:   "diff [<commit-a>] [<commit-b>]",
 		Short: "Compare stats between two commits",
 		Long: `Show the difference in stats between two commits.
 
 Useful for comparing branches, reviewing PR impact, or checking
-progress over time. Shows the value at each commit and the change.`,
-		Example: `  # Compare HEAD to the previous commit
-  git stats diff HEAD~1 HEAD
+progress over time. Shows the value at each commit and the change.
 
-  # Compare a feature branch to main
-  git stats diff main feature-branch`,
-		Args: cobra.ExactArgs(2),
+Accepts git diff-style syntax:
+  git stats diff                   # HEAD~1 vs HEAD
+  git stats diff main              # main vs HEAD
+  git stats diff main feature      # main vs feature
+  git stats diff main..feature     # main vs feature`,
+		Example: `  # Compare HEAD to the previous commit
+  git stats diff
+
+  # Compare main to HEAD
+  git stats diff main
+
+  # Compare two branches
+  git stats diff main feature-branch
+  git stats diff main..feature-branch`,
+		Args: cobra.MaximumNArgs(2),
 		RunE: runDiff,
 	}
 	cmd.Flags().StringSliceP("key", "k", nil, "Stats to include (all if not specified)")
@@ -41,8 +52,27 @@ func runDiff(cmd *cobra.Command, args []string) error {
 
 	keys = config.ResolveKeys(keys, cfg)
 
-	commitA := args[0]
-	commitB := args[1]
+	var commitA, commitB string
+	switch len(args) {
+	case 0:
+		commitA = "HEAD~1"
+		commitB = "HEAD"
+	case 1:
+		// Support "main..feature" syntax
+		if parts := strings.SplitN(args[0], "..", 2); len(parts) == 2 {
+			commitA = parts[0]
+			commitB = parts[1]
+			if commitB == "" {
+				commitB = "HEAD"
+			}
+		} else {
+			commitA = args[0]
+			commitB = "HEAD"
+		}
+	case 2:
+		commitA = args[0]
+		commitB = args[1]
+	}
 
 	sA, err := stats.Load(keys, cfg, true, []string{commitA, "-n", "1"})
 	if err != nil {
