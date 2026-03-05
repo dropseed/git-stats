@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+HOOK=".git/hooks/pre-commit"
+
+if [ -f "$HOOK" ]; then
+    echo "Pre-commit hook already exists at $HOOK"
+    echo "Remove it manually if you want to reinstall."
+    exit 1
+fi
+
+mkdir -p .git/hooks
+ln -s ../../scripts/pre-commit "$HOOK"
+echo "Installed pre-commit hook."
