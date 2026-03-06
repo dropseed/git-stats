@@ -446,6 +446,10 @@ func Load(keys []string, cfg *config.Config, fillDefaults bool, gitLogArgs []str
 	}
 
 	s := New()
+	keySet := make(map[string]bool, len(keys))
+	for _, k := range keys {
+		keySet[k] = true
+	}
 	var commit string
 	expectHash := false
 	expectShortHash := false
@@ -496,14 +500,7 @@ func Load(keys []string, cfg *config.Config, fillDefaults bool, gitLogArgs []str
 		key := strings.TrimSpace(parts[0])
 		value := strings.TrimSpace(parts[1])
 
-		found := false
-		for _, k := range keys {
-			if k == key {
-				found = true
-				break
-			}
-		}
-		if found {
+		if keySet[key] {
 			s.AddOrUpdate(commit, key, value, cfg.TypeForStat(key))
 		}
 	}

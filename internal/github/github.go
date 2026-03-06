@@ -4,11 +4,15 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/dropseed/git-stats/internal/stats"
 )
+
+var httpClient = &http.Client{Timeout: 30 * time.Second}
 
 func ReportStatus(key string, currentValue float64, previousValue float64, hasPrevious bool, goal string, stat *stats.CommitStat) error {
 	token := os.Getenv("GITHUB_TOKEN")
@@ -63,11 +67,12 @@ func ReportStatus(key string, currentValue float64, previousValue float64, hasPr
 	req.Header.Set("Accept", "application/vnd.github.v3+json")
 	req.Header.Set("Content-Type", "application/json")
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("posting GitHub status: %w", err)
 	}
 	defer resp.Body.Close() //nolint:errcheck
+	_, _ = io.Copy(io.Discard, resp.Body)
 
 	if resp.StatusCode >= 300 {
 		return fmt.Errorf("GitHub status API returned %d", resp.StatusCode)

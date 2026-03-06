@@ -165,8 +165,10 @@ func doRegen(cmd *cobra.Command, keys []string, cfg *config.Config, missingOnly 
 	summary := regenSummary{}
 	var failedCommits []string
 
+	isTTY := isTerminal()
+
 	for i, commit := range commits {
-		if isTerminal() {
+		if isTTY {
 			fmt.Fprintf(os.Stderr, "\r\033[K[%d/%d] %s", i+1, len(commits), commit[:12])
 		} else {
 			fmt.Fprintf(os.Stderr, "[%d/%d] %s\n", i+1, len(commits), commit[:12])
@@ -224,7 +226,7 @@ func doRegen(cmd *cobra.Command, keys []string, cfg *config.Config, missingOnly 
 		}
 	}
 
-	if isTerminal() {
+	if isTTY {
 		fmt.Fprintln(os.Stderr)
 	}
 
