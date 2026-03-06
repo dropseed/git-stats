@@ -100,8 +100,16 @@ func doRegen(cmd *cobra.Command, keys []string, cfg *config.Config, missingOnly 
 		return fmt.Errorf("getting current branch: %w", err)
 	}
 
+	// Stash any uncommitted changes so checkouts work cleanly
 	if err := checkTrackedFilesClean(); err != nil {
-		return err
+		fmt.Fprintf(os.Stderr, "Stashing uncommitted changes...\n")
+		if _, stashErr := git.Exec("stash", "push", "-m", "git-stats regen (automatic)"); stashErr != nil {
+			return fmt.Errorf("working tree is dirty and stash failed: %w", stashErr)
+		}
+		defer func() {
+			fmt.Fprintf(os.Stderr, "Restoring stashed changes...\n")
+			_, _ = git.Exec("stash", "pop")
+		}()
 	}
 
 	s, err := stats.Load(keys, cfg, false, gitLogArgs)
@@ -139,7 +147,7 @@ func doRegen(cmd *cobra.Command, keys []string, cfg *config.Config, missingOnly 
 		defer func() { _ = os.RemoveAll(keepDir) }()
 
 		for _, f := range keepFiles {
-			if err := copyFileToDir(f, keepDir); err != nil {
+			if err := copyFile(f, filepath.Join(keepDir, f)); err != nil {
 				return fmt.Errorf("backing up --keep file %q: %w", f, err)
 			}
 		}
@@ -180,7 +188,7 @@ func doRegen(cmd *cobra.Command, keys []string, cfg *config.Config, missingOnly 
 		// Restore keep files after checkout
 		if len(keepFiles) > 0 {
 			for _, f := range keepFiles {
-				if err := restoreFileFromDir(f, keepDir); err != nil {
+				if err := copyFile(filepath.Join(keepDir, f), f); err != nil {
 					fmt.Fprintf(os.Stderr, "\nWarning: failed to restore --keep file %q: %v\n", f, err)
 				}
 			}
@@ -281,13 +289,12 @@ func isTerminal() bool {
 	return fi.Mode()&os.ModeCharDevice != 0
 }
 
-func copyFileToDir(relPath string, dir string) error {
-	dst := filepath.Join(dir, relPath)
-	if err := os.MkdirAll(filepath.Dir(dst), 0755); err != nil {
+func copyFile(srcPath, dstPath string) error {
+	if err := os.MkdirAll(filepath.Dir(dstPath), 0755); err != nil {
 		return err
 	}
 
-	src, err := os.Open(relPath)
+	src, err := os.Open(srcPath)
 	if err != nil {
 		return err
 	}
@@ -298,39 +305,12 @@ func copyFileToDir(relPath string, dir string) error {
 		return err
 	}
 
-	out, err := os.OpenFile(dst, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, info.Mode())
+	dst, err := os.OpenFile(dstPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, info.Mode())
 	if err != nil {
 		return err
 	}
-	defer func() { _ = out.Close() }()
+	defer func() { _ = dst.Close() }()
 
-	_, err = io.Copy(out, src)
-	return err
-}
-
-func restoreFileFromDir(relPath string, dir string) error {
-	src := filepath.Join(dir, relPath)
-	if err := os.MkdirAll(filepath.Dir(relPath), 0755); err != nil {
-		return err
-	}
-
-	in, err := os.Open(src)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = in.Close() }()
-
-	info, err := in.Stat()
-	if err != nil {
-		return err
-	}
-
-	out, err := os.OpenFile(relPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, info.Mode())
-	if err != nil {
-		return err
-	}
-	defer func() { _ = out.Close() }()
-
-	_, err = io.Copy(out, in)
+	_, err = io.Copy(dst, src)
 	return err
 }

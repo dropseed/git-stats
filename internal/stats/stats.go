@@ -19,9 +19,10 @@ const (
 	colorReset  = "\033[0m"
 	colorBold   = "\033[1m"
 	colorDim    = "\033[2m"
-	colorCyan   = "\033[36m"
+	colorRed    = "\033[31m"
 	colorGreen  = "\033[32m"
 	colorYellow = "\033[33m"
+	colorCyan   = "\033[36m"
 )
 
 type CommitStat struct {
@@ -255,6 +256,15 @@ func (s *CommitStats) PrintTable(valuesOnly bool) {
 		fmt.Println()
 	}
 
+	// Precompute max per key for highlighting
+	maxVals := make(map[string]float64)
+	for _, key := range s.Keys {
+		stat := s.Stats[key]
+		if len(s.Commits) >= 3 && stat.Min() != stat.Max() {
+			maxVals[key] = stat.Max()
+		}
+	}
+
 	// Print rows
 	for _, commit := range s.Commits {
 		if !valuesOnly {
@@ -264,7 +274,11 @@ func (s *CommitStats) PrintTable(valuesOnly bool) {
 			stat := s.Stats[key]
 			v, ok := stat.Get(commit)
 			if ok {
-				fmt.Printf("  %s%*s%s", colorCyan, colWidths[i], stat.FormatValue(v), colorReset)
+				valColor := colorCyan
+				if max, has := maxVals[key]; has && v == max {
+					valColor = colorGreen + colorBold
+				}
+				fmt.Printf("  %s%*s%s", valColor, colWidths[i], stat.FormatValue(v), colorReset)
 			} else {
 				fmt.Printf("  %*s", colWidths[i], "")
 			}
@@ -283,15 +297,44 @@ func (s *CommitStats) PrintTable(valuesOnly bool) {
 func (s *CommitStats) Sparklines() {
 	for _, key := range s.Keys {
 		stat := s.Stats[key]
-		fmt.Printf("%s%s%s %s(min %s%s%s, max %s%s%s, avg %s%s%s)%s\n",
+
+		// Trend indicator
+		vals := stat.Values()
+		trend := ""
+		if len(vals) >= 2 {
+			first := vals[0]
+			last := vals[len(vals)-1]
+			delta := last - first
+			if first != 0 {
+				pct := math.Abs(delta/first) * 100
+				pctStr := fmt.Sprintf("%.0f%%", pct)
+				if pct < 1 {
+					pctStr = "<1%"
+				}
+				if delta > 0 {
+					trend = fmt.Sprintf(" %s↑ %s%s", colorGreen, pctStr, colorReset)
+				} else if delta < 0 {
+					trend = fmt.Sprintf(" %s↓ %s%s", colorRed, pctStr, colorReset)
+				} else {
+					trend = fmt.Sprintf(" %s→%s", colorDim, colorReset)
+				}
+			} else if delta > 0 {
+				trend = fmt.Sprintf(" %s↑%s", colorGreen, colorReset)
+			} else if delta < 0 {
+				trend = fmt.Sprintf(" %s↓%s", colorRed, colorReset)
+			}
+		}
+
+		fmt.Printf("%s%s%s %s(min %s%s%s, max %s%s%s, avg %s%s%s)%s%s\n",
 			colorBold, key, colorReset,
 			colorDim,
 			colorCyan, stat.FormatValue(stat.Min()), colorDim,
 			colorCyan, stat.FormatValue(stat.Max()), colorDim,
 			colorCyan, stat.FormatValue(stat.Avg()), colorDim,
 			colorReset,
+			trend,
 		)
-		fmt.Printf("%s%s%s\n", colorGreen, sparkline(stat.Values()), colorReset)
+		fmt.Printf("%s%s%s\n", colorGreen, sparkline(vals), colorReset)
 		fmt.Println()
 	}
 }
@@ -337,8 +380,15 @@ func sparkline(values []float64) string {
 		return ""
 	}
 
-	min, max := values[0], values[0]
-	for _, v := range values[1:] {
+	// Interpolate to target width if we have fewer points
+	targetWidth := 60
+	if len(values) >= targetWidth {
+		targetWidth = len(values)
+	}
+	display := interpolate(values, targetWidth)
+
+	min, max := display[0], display[0]
+	for _, v := range display[1:] {
 		if v < min {
 			min = v
 		}
@@ -348,7 +398,7 @@ func sparkline(values []float64) string {
 	}
 
 	var sb strings.Builder
-	for _, v := range values {
+	for _, v := range display {
 		idx := 0
 		if max > min {
 			idx = int((v - min) / (max - min) * float64(len(sparkBlocks)-1))
@@ -356,6 +406,30 @@ func sparkline(values []float64) string {
 		sb.WriteRune(sparkBlocks[idx])
 	}
 	return sb.String()
+}
+
+// interpolate stretches values to targetLen using linear interpolation.
+func interpolate(values []float64, targetLen int) []float64 {
+	if len(values) == 0 || targetLen <= 0 {
+		return values
+	}
+	if len(values) >= targetLen {
+		return values
+	}
+
+	result := make([]float64, targetLen)
+	for i := range result {
+		srcPos := float64(i) * float64(len(values)-1) / float64(targetLen-1)
+		srcIdx := int(srcPos)
+		frac := srcPos - float64(srcIdx)
+
+		if srcIdx >= len(values)-1 {
+			result[i] = values[len(values)-1]
+		} else {
+			result[i] = values[srcIdx]*(1-frac) + values[srcIdx+1]*frac
+		}
+	}
+	return result
 }
 
 func Load(keys []string, cfg *config.Config, fillDefaults bool, gitLogArgs []string) (*CommitStats, error) {
